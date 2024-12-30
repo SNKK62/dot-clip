@@ -1,5 +1,5 @@
 use tauri::tray::TrayIconBuilder;
-use tauri::WindowEvent;
+use tauri::{Manager, WindowEvent};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -16,6 +16,12 @@ pub fn run() {
             let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .build(app)?;
+            #[cfg(debug_assertions)] // only include this code on debug builds
+            {
+                let window = app.get_webview_window("main").unwrap();
+                window.open_devtools();
+                window.close_devtools();
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

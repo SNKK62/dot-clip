@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
@@ -11,6 +11,21 @@ function App() {
     // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     setGreetMsg(await invoke("greet", { name }));
   }
+
+  async function startWatchClipboard() {
+    invoke("watch_clipboard");
+  }
+
+  async function getPreviousClipboard() {
+    const clipboard = await invoke("get_previous_content");
+    console.log(clipboard);
+  }
+
+  useEffect(()=> {
+    console.log('useEffect')
+    startWatchClipboard()
+    console.log('watching clipboard')
+  }, [])
 
   return (
     <main className="container">
@@ -44,6 +59,7 @@ function App() {
         <button type="submit">Greet</button>
       </form>
       <p>{greetMsg}</p>
+      <button type="button" onClick={getPreviousClipboard} >Obtain latest content</button>
     </main>
   );
 }

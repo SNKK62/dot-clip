@@ -12,13 +12,19 @@
   font-weight: 400;
 
   color: #0f0f0f;
-  background-color: #f6f6f6;
+  /* background-color: #f6f6f6; */
+  /* background-color: #0f0f0f; */
+  border-radius: 20px;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+}
+#app {
+  border-radius: 20px;
+  background-color: #f3f3f3;
 }
 
 .container {

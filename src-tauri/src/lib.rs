@@ -61,6 +61,8 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {
             // default single instance handler
         }))
+        // disable the default menu on macOS
+        .enable_macos_default_menu(false)
         .setup(|app| {
             let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -68,14 +70,17 @@ pub fn run() {
             app.manage(RwLock::new(AppState {
                 previous_clipboard: "".to_string(),
             }));
+            // hide the icon in dock on macOS
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             // open devtools on debug builds
-            #[cfg(debug_assertions)] // only include this code on debug builds
-            {
-                let window = app.get_webview_window("main").unwrap();
-                window.open_devtools();
-                window.close_devtools();
-                window.hide().unwrap(); // hide the window on start
-            }
+            // #[cfg(debug_assertions)] // only include this code on debug builds
+            // {
+            //     let window = app.get_webview_window("main").unwrap();
+            //     window.open_devtools();
+            //     window.close_devtools();
+            //     window.hide().unwrap(); // hide the window on start
+            // }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -87,6 +92,7 @@ pub fn run() {
                     window.hide().unwrap();
                 }
             }
+            println!("event: {:?}", event);
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![

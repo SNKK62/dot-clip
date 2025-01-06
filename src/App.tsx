@@ -28,6 +28,9 @@ function App() {
         const isRegist = await isRegistered("Control+Shift+C");
         console.log(isRegist);
         const appWindow = getCurrentWindow();
+        if (await appWindow.isVisible()) {
+          return
+        }
         getPreviousClipboard();
 				const cursorPosition = (await invoke("get_cursor_position")) as {
 					x: number;
@@ -40,17 +43,31 @@ function App() {
         await appWindow.setFocus();
         await appWindow.setShadow(true);
         await appWindow.setAlwaysOnTop(true);
-        await appWindow.setMaximizable(false);
-        await appWindow.setMinimizable(false);
-        await appWindow.setClosable(false);
-        await appWindow.setResizable(false);
+        // await appWindow.setMaximizable(false);
+        // await appWindow.setMinimizable(false);
+        // await appWindow.setClosable(false);
+        // await appWindow.setResizable(false);
 			});
 		};
     setup();
   }, [])
 
+  useEffect(() => {
+  const appWindow = getCurrentWindow();
+  const handleKeyDown = (e: KeyboardEvent) => {
+    console.log(e);
+    if (e.key === "Escape") {
+      appWindow.hide();
+    }
+  }
+  window.addEventListener('keydown', handleKeyDown);
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+  }
+  }, [])
+
   return (
-    <main className="container">
+    <main>
       <ul>
         <li>{data}</li>
       </ul>

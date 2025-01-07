@@ -5,14 +5,14 @@ import { LogicalPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState<string>("");
+  const [data, setData] = useState<string[]>([]);
 
   async function startWatchClipboard() {
     invoke("watch_clipboard");
   }
 
   async function getPreviousClipboard() {
-    const clipboard: string = await invoke("get_previous_content");
+    const clipboard: string[] = await invoke("get_previous_content");
     setData(clipboard);
   }
 
@@ -69,7 +69,9 @@ function App() {
   return (
     <main>
       <ul>
-        <li>{data}</li>
+        {data.map((el) => {
+          return (<li>{el}</li>)
+        })}
       </ul>
     </main>
   );

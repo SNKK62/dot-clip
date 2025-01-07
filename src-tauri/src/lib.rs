@@ -22,24 +22,33 @@ fn get_cursor_position() -> CursorPosition {
 }
 
 struct AppState {
-    previous_clipboard: String,
+    previous_clipboard: Vec<String>,
 }
 
 #[tauri::command]
 fn watch_clipboard(app: tauri::AppHandle) {
     std::thread::spawn(move || loop {
-        let mut should_overwrite = false;
-        let content = app.clipboard().read_text().unwrap();
+        let mut should_append = false;
+        let content = match app.clipboard().read_text() {
+            Ok(content) => content,
+            Err(e) => {
+                println!("Error reading clipboard: {:?}", e);
+                thread::sleep(time::Duration::from_secs(1));
+                continue;
+            }
+        };
         let previous_state_atom = app.state::<RwLock<AppState>>();
         {
             let previous_state = previous_state_atom.read().unwrap();
-            if previous_state.previous_clipboard != content {
-                should_overwrite = true;
+            if previous_state.previous_clipboard.is_empty() {
+                should_append = true
+            } else if *previous_state.previous_clipboard.last().unwrap() != content {
+                should_append = true;
             }
         }
-        if should_overwrite {
+        if should_append {
             let mut previous_state = previous_state_atom.write().unwrap();
-            previous_state.previous_clipboard = content.clone();
+            previous_state.previous_clipboard.push(content.clone());
             println!("Clipboard changed: {}", content);
         }
         thread::sleep(time::Duration::from_secs(1));
@@ -47,7 +56,7 @@ fn watch_clipboard(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
-fn get_previous_content(app: tauri::AppHandle) -> String {
+fn get_previous_content(app: tauri::AppHandle) -> Vec<String> {
     let previous_state = app.state::<RwLock<AppState>>();
     let previous_state = previous_state.read().unwrap();
     previous_state.previous_clipboard.clone()
@@ -68,7 +77,7 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .build(app)?;
             app.manage(RwLock::new(AppState {
-                previous_clipboard: "".to_string(),
+                previous_clipboard: Vec::new(),
             }));
             // hide the icon in dock on macOS
             #[cfg(target_os = "macos")]

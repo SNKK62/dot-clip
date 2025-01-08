@@ -22,7 +22,7 @@ fn get_cursor_position() -> CursorPosition {
 }
 
 struct AppState {
-    previous_clipboard: Vec<String>,
+    clipboard_history: Vec<String>,
 }
 
 #[tauri::command]
@@ -40,15 +40,15 @@ fn watch_clipboard(app: tauri::AppHandle) {
         let previous_state_atom = app.state::<RwLock<AppState>>();
         {
             let previous_state = previous_state_atom.read().unwrap();
-            if previous_state.previous_clipboard.is_empty() {
+            if previous_state.clipboard_history.is_empty() {
                 should_append = true
-            } else if *previous_state.previous_clipboard.last().unwrap() != content {
+            } else if *previous_state.clipboard_history.last().unwrap() != content {
                 should_append = true;
             }
         }
         if should_append {
             let mut previous_state = previous_state_atom.write().unwrap();
-            previous_state.previous_clipboard.push(content.clone());
+            previous_state.clipboard_history.push(content.clone());
             println!("Clipboard changed: {}", content);
         }
         thread::sleep(time::Duration::from_secs(1));
@@ -59,7 +59,7 @@ fn watch_clipboard(app: tauri::AppHandle) {
 fn get_previous_content(app: tauri::AppHandle) -> Vec<String> {
     let previous_state = app.state::<RwLock<AppState>>();
     let previous_state = previous_state.read().unwrap();
-    previous_state.previous_clipboard.clone()
+    previous_state.clipboard_history.clone()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -77,7 +77,7 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .build(app)?;
             app.manage(RwLock::new(AppState {
-                previous_clipboard: Vec::new(),
+                clipboard_history: Vec::new(),
             }));
             // hide the icon in dock on macOS
             #[cfg(target_os = "macos")]

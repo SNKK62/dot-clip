@@ -41,8 +41,8 @@ function App() {
 				);
         await appWindow.show();
         await appWindow.setFocus();
-        await appWindow.setShadow(true);
-        await appWindow.setAlwaysOnTop(true);
+        // await appWindow.setShadow(true);
+        // await appWindow.setAlwaysOnTop(true);
         // await appWindow.setMaximizable(false);
         // await appWindow.setMinimizable(false);
         // await appWindow.setClosable(false);

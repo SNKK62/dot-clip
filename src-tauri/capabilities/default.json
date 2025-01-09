@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main_menu",
+    "sub_menu"
   ],
   "permissions": [
     "core:default",

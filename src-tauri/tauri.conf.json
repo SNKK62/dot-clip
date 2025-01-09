@@ -13,6 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main_menu",
         "title": "dot-clip",
         "width": 150,
         "height": 400,
@@ -25,7 +26,22 @@
         "maximizable": false,
         "minimizable": false,
         "closable": false
-
+      },
+      {
+        "label": "sub_menu",
+        "title": "dot-clip-submenu",
+        "url": "index.html",
+        "width": 150,
+        "height": 400,
+        "decorations": false,
+        "shadow": true,
+        "transparent": true,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false
       }
     ],
     "security": {

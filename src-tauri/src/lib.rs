@@ -62,6 +62,24 @@ fn get_previous_content(app: tauri::AppHandle) -> Vec<String> {
     previous_state.clipboard_history.clone()
 }
 
+#[tauri::command]
+fn open_submenu(app: tauri::AppHandle) {
+    let window = app.get_webview_window("sub_menu").unwrap();
+    let pos = get_cursor_position();
+    let pos = tauri::LogicalPosition {
+        x: pos.x + 175,
+        y: pos.y + 20,
+    };
+    window.set_position(pos).unwrap();
+    window.show().unwrap();
+}
+
+#[tauri::command]
+fn close_submenu(app: tauri::AppHandle) {
+    let window = app.get_webview_window("sub_menu").unwrap();
+    window.hide().unwrap();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -83,13 +101,20 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             // open devtools on debug builds
-            // #[cfg(debug_assertions)] // only include this code on debug builds
-            // {
-            //     let window = app.get_webview_window("main").unwrap();
-            //     window.open_devtools();
-            //     window.close_devtools();
-            //     window.hide().unwrap(); // hide the window on start
-            // }
+            #[cfg(debug_assertions)] // only include this code on debug builds
+            {
+                let window = app.get_webview_window("main_menu").unwrap();
+                window.open_devtools();
+                window.close_devtools();
+                // window.hide().unwrap(); // hide the window on start
+            }
+            #[cfg(debug_assertions)] // only include this code on debug builds
+            {
+                let window = app.get_webview_window("sub_menu").unwrap();
+                window.open_devtools();
+                window.close_devtools();
+                // window.hide().unwrap(); // hide the window on start
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -97,7 +122,7 @@ pub fn run() {
                 api.prevent_close();
                 window.hide().unwrap();
             } else if let WindowEvent::Focused(focused) = event {
-                if !focused {
+                if !focused && window.label() == "sub_menu" {
                     window.hide().unwrap();
                 }
             }
@@ -107,7 +132,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             watch_clipboard,
             get_previous_content,
-            get_cursor_position
+            get_cursor_position,
+            open_submenu,
+            close_submenu
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

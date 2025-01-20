@@ -32,7 +32,7 @@
         "title": "dot-clip-submenu",
         "url": "index.html",
         "width": 150,
-        "height": 400,
+        "height": 360,
         "decorations": false,
         "shadow": true,
         "transparent": true,

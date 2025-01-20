@@ -40,7 +40,6 @@ export function MainMenu() {
           new LogicalPosition(cursorPosition.x, cursorPosition.y),
         );
         await appWindow.show();
-        await invoke("open_submenu");
         await appWindow.setFocus();
         // await appWindow.setShadow(true);
         // await appWindow.setAlwaysOnTop(true);
@@ -48,6 +47,10 @@ export function MainMenu() {
         // await appWindow.setMinimizable(false);
         // await appWindow.setClosable(false);
         // await appWindow.setResizable(false);
+        const buttonElement = document.querySelector('button');
+        if (buttonElement) {
+          buttonElement.focus();
+        }
       });
     };
     setup();
@@ -60,6 +63,8 @@ export function MainMenu() {
       if (e.key === "Escape") {
         appWindow.hide();
         invoke("close_submenu");
+      } else if (e.key === "ArrowRight") {
+        invoke("open_submenu");
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -68,11 +73,19 @@ export function MainMenu() {
     }
   }, [])
 
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    appWindow.listen("tauri://focus", ({event, payload}) => {
+      console.log("event: ", event);
+      console.log("focus: ", payload);
+    })
+  },[])
+
   return (
     <main>
       <ul>
         {data.map((el, i) => {
-          return (<li key={i}>{el}</li>)
+          return (<li key={i}><button>{el}</button></li>)
         })}
       </ul>
     </main>

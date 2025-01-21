@@ -10,6 +10,11 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
+use enigo::{
+    Direction::{Click, Press, Release},
+    Enigo, Key, Keyboard, Settings,
+};
+
 // 履歴ファイル名
 const HISTORY_FILENAME: &str = "clipboard_history.txt";
 
@@ -77,6 +82,21 @@ fn load_history(file_path: &Path) -> Result<Vec<String>, String> {
         .collect::<Result<Vec<String>, _>>()
         .map_err(|e| e.to_string())?;
     Ok(history)
+}
+
+#[tauri::command]
+fn emulate_paste() {
+    let mut enigo = Enigo::new(&Settings::default()).unwrap();
+    // Ctrl+V (Windows/Linux) or Cmd+V (macOS)
+    #[cfg(target_os = "macos")]
+    enigo.key(Key::Meta, Press).unwrap();
+    #[cfg(not(target_os = "macos"))]
+    enigo.key(Key::Control, Press).unwrap();
+    enigo.key(Key::Unicode('v'), Click).unwrap();
+    #[cfg(target_os = "macos")]
+    enigo.key(Key::Meta, Release).unwrap();
+    #[cfg(not(target_os = "macos"))]
+    enigo.key(Key::Control, Release).unwrap();
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -165,6 +185,14 @@ fn close_submenu(app: tauri::AppHandle) {
     window.hide().unwrap();
 }
 
+#[tauri::command]
+fn close_all(app: tauri::AppHandle) {
+    let main_window = app.get_webview_window("main_menu").unwrap();
+    let sub_window = app.get_webview_window("sub_menu").unwrap();
+    main_window.hide().unwrap();
+    sub_window.hide().unwrap();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -228,9 +256,14 @@ pub fn run() {
                     if !main_window.is_focused().unwrap() && !sub_window.is_focused().unwrap() {
                         main_window.hide().unwrap();
                         sub_window.hide().unwrap();
+                        emulate_paste();
                     }
                 } else if visible_windows.len() == 1 && !main_window.is_focused().unwrap() {
                     main_window.hide().unwrap();
+                    emulate_paste();
+                } else if visible_windows.is_empty() {
+                    println!("no window is visible");
+                    emulate_paste();
                 }
             }
         })
@@ -240,7 +273,8 @@ pub fn run() {
             get_previous_content,
             get_cursor_position,
             open_submenu,
-            close_submenu
+            close_submenu,
+            close_all,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

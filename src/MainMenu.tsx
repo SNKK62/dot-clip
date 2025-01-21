@@ -57,12 +57,10 @@ export function MainMenu() {
   }, [])
 
   useEffect(() => {
-    const appWindow = getCurrentWindow();
     const handleKeyDown = (e: KeyboardEvent) => {
       console.log(e);
       if (e.key === "Escape") {
-        appWindow.hide();
-        invoke("close_submenu");
+        invoke("close_all");
       } else if (e.key === "ArrowRight") {
         invoke("open_submenu");
       }

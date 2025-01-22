@@ -904,8 +904,10 @@ dependencies = [
 name = "dot-clip"
 version = "0.1.0"
 dependencies = [
+ "cocoa",
  "enigo",
  "mouse_position",
+ "objc",
  "serde",
  "serde_json",
  "tauri",

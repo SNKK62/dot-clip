@@ -15,6 +15,54 @@ use enigo::{
     Enigo, Key, Keyboard, Settings,
 };
 
+use cocoa::base::{id, nil};
+use cocoa::foundation::NSString;
+use objc::{class, msg_send, sel, sel_impl};
+use std::ffi::CStr;
+
+fn get_focused_window() -> Option<String> {
+    unsafe {
+        let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let frontmost_app: id = msg_send![workspace, frontmostApplication];
+        let app_name: id = msg_send![frontmost_app, localizedName];
+
+        if app_name.is_null() {
+            None
+        } else {
+            Some(
+                CStr::from_ptr(NSString::UTF8String(app_name))
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            )
+        }
+    }
+}
+
+fn focus_window(window_name: &str) {
+    unsafe {
+        let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let running_apps: id = msg_send![workspace, runningApplications];
+        let count: usize = msg_send![running_apps, count];
+
+        for i in 0..count {
+            let app: id = msg_send![running_apps, objectAtIndex: i];
+            let app_name: id = msg_send![app, localizedName];
+            let app_name_str = if app_name != nil {
+                let ptr = NSString::UTF8String(app_name);
+                Some(std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned())
+            } else {
+                None
+            };
+
+            if app_name_str.as_deref() == Some(window_name) {
+                let _: () = msg_send![app, activateWithOptions: 1];
+                break;
+            }
+        }
+    }
+}
+
 // 履歴ファイル名
 const HISTORY_FILENAME: &str = "clipboard_history.txt";
 
@@ -121,6 +169,8 @@ fn get_cursor_position(app: tauri::AppHandle) -> CursorPosition {
 struct AppState {
     clipboard_history: Vec<String>,
     last_cursor_position: Option<CursorPosition>,
+    is_showing: bool,
+    last_focused_window: Option<String>,
 }
 
 #[tauri::command]
@@ -144,12 +194,25 @@ fn watch_clipboard(app: tauri::AppHandle) {
                 should_append = true;
             }
         }
-        if should_append {
+        // restrict the scope of the write lock
+        {
             let mut previous_state = previous_state_atom.write().unwrap();
-            previous_state.clipboard_history.push(content.clone());
-            println!("Clipboard changed: {}", content);
-            if let Err(e) = save_clipboard_to_history(content) {
-                println!("Error saving clipboard to history: {:?}", e);
+            let last_focused_window = previous_state.last_focused_window.clone();
+            if should_append {
+                previous_state.clipboard_history.push(content.clone());
+                println!("Clipboard changed: {}", content);
+                if let Err(e) = save_clipboard_to_history(content) {
+                    println!("Error saving clipboard to history: {:?}", e);
+                }
+            }
+            let active_window = get_focused_window();
+            if let Some(window) = active_window {
+                if window != "dot-clip"
+                    && (last_focused_window.is_none() || window != last_focused_window.unwrap())
+                {
+                    println!("active_window: {:?}", window);
+                    previous_state.last_focused_window = Some(window);
+                }
             }
         }
         thread::sleep(time::Duration::from_secs(1));
@@ -189,8 +252,13 @@ fn close_submenu(app: tauri::AppHandle) {
 fn close_all(app: tauri::AppHandle) {
     let main_window = app.get_webview_window("main_menu").unwrap();
     let sub_window = app.get_webview_window("sub_menu").unwrap();
-    main_window.hide().unwrap();
-    sub_window.hide().unwrap();
+    if main_window.is_focused().unwrap() {
+        sub_window.hide().unwrap();
+        main_window.hide().unwrap();
+    } else {
+        main_window.hide().unwrap();
+        sub_window.hide().unwrap();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -215,6 +283,8 @@ pub fn run() {
             app.manage(RwLock::new(AppState {
                 clipboard_history: initial_clipboard_content,
                 last_cursor_position: None,
+                is_showing: false,
+                last_focused_window: None,
             }));
             // hide the icon in dock on macOS
             #[cfg(target_os = "macos")]
@@ -236,34 +306,41 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|app, event| {
-            if let WindowEvent::Focused(_focused) = event {
-                // let previous_state = app.state::<RwLock<AppState>>();
-                // let mut previous_state = previous_state.write().unwrap();
-                let all_windows = app.windows();
-                let visible_windows = all_windows
-                    .iter()
-                    .filter(move |(_label, win)| win.is_visible().unwrap())
-                    .collect::<std::collections::HashMap<_, _>>();
+            if let WindowEvent::Focused(focused) = event {
+                let previous_state = app.state::<RwLock<AppState>>();
+                let mut previous_state = previous_state.write().unwrap();
+
+                // let all_windows = app.windows();
+                // let visible_windows = all_windows
+                //     .iter()
+                //     .filter(move |(_label, win)| win.is_visible().unwrap())
+                //     .collect::<std::collections::HashMap<_, _>>();
 
                 println!("label: {:?}", app.label());
-                // println!("focused_window: {:?}", previous_state.focused_window);
-                println!("count: {}", visible_windows.len());
+                println!("focused: {:?}", focused);
+                println!("is_showing: {:?}", previous_state.is_showing);
+                // println!("count: {}", visible_windows.len());
+
+                if *focused {
+                    previous_state.is_showing = true;
+                    return;
+                }
+
+                if !previous_state.is_showing {
+                    return;
+                }
 
                 let main_window = app.get_webview_window("main_menu").unwrap();
                 let sub_window = app.get_webview_window("sub_menu").unwrap();
 
-                if visible_windows.len() == 2 {
-                    if !main_window.is_focused().unwrap() && !sub_window.is_focused().unwrap() {
-                        main_window.hide().unwrap();
-                        sub_window.hide().unwrap();
+                if !main_window.is_focused().unwrap() && !sub_window.is_focused().unwrap() {
+                    main_window.hide().unwrap();
+                    sub_window.hide().unwrap();
+                    previous_state.is_showing = false;
+                    if let Some(window) = &previous_state.last_focused_window {
+                        focus_window(window);
                         emulate_paste();
                     }
-                } else if visible_windows.len() == 1 && !main_window.is_focused().unwrap() {
-                    main_window.hide().unwrap();
-                    emulate_paste();
-                } else if visible_windows.is_empty() {
-                    println!("no window is visible");
-                    emulate_paste();
                 }
             }
         })

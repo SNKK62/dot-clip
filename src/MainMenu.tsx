@@ -3,9 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { isRegistered, register } from "@tauri-apps/plugin-global-shortcut";
 import { LogicalPosition, getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
+import { useFocusDom } from "./hooks";
 
 export function MainMenu() {
   const [data, setData] = useState<string[]>([]);
+  useFocusDom();
 
   async function startWatchClipboard() {
     invoke("watch_clipboard");
@@ -40,17 +42,14 @@ export function MainMenu() {
           new LogicalPosition(cursorPosition.x, cursorPosition.y),
         );
         await appWindow.show();
-        await appWindow.setFocus();
+        invoke("open_submenu");
+        invoke("focus_webview_window", {name: "main_menu"});
         // await appWindow.setShadow(true);
         // await appWindow.setAlwaysOnTop(true);
         // await appWindow.setMaximizable(false);
         // await appWindow.setMinimizable(false);
         // await appWindow.setClosable(false);
         // await appWindow.setResizable(false);
-        const buttonElement = document.querySelector('button');
-        if (buttonElement) {
-          buttonElement.focus();
-        }
       });
     };
     setup();
@@ -62,7 +61,7 @@ export function MainMenu() {
       if (e.key === "Escape") {
         invoke("close_all");
       } else if (e.key === "ArrowRight") {
-        invoke("open_submenu");
+        invoke("focus_webview_window", {name: "sub_menu"});
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -70,14 +69,6 @@ export function MainMenu() {
       window.removeEventListener('keydown', handleKeyDown);
     }
   }, [])
-
-  useEffect(() => {
-    const appWindow = getCurrentWindow();
-    appWindow.listen("tauri://focus", ({event, payload}) => {
-      console.log("event: ", event);
-      console.log("focus: ", payload);
-    })
-  },[])
 
   return (
     <main>

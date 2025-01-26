@@ -3,7 +3,7 @@ use std::{sync::RwLock, thread, time};
 use mouse_position::mouse_position::Mouse;
 use serde::{Deserialize, Serialize};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Manager, WindowEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 use std::fs::{self, OpenOptions};
@@ -239,13 +239,14 @@ fn open_submenu(app: tauri::AppHandle) {
     let window = app.get_webview_window("sub_menu").unwrap();
     window.set_position(pos).unwrap();
     window.show().unwrap();
-    window.set_focus().unwrap()
 }
 
 #[tauri::command]
-fn close_submenu(app: tauri::AppHandle) {
-    let window = app.get_webview_window("sub_menu").unwrap();
-    window.hide().unwrap();
+fn focus_webview_window(app: tauri::AppHandle, name: String) {
+    println!("focus_webview_window: {:?}", name);
+    let window = app.get_webview_window(&name).unwrap();
+    window.set_focus().unwrap();
+    app.emit_to(&name, "focus-dom", 0).unwrap();
 }
 
 #[tauri::command]
@@ -258,6 +259,17 @@ fn close_all(app: tauri::AppHandle) {
     } else {
         main_window.hide().unwrap();
         sub_window.hide().unwrap();
+    }
+}
+
+#[tauri::command]
+fn close_and_paste(app: tauri::AppHandle) {
+    close_all(app.clone());
+    let previous_state = app.state::<RwLock<AppState>>();
+    let previous_state = previous_state.read().unwrap();
+    if let Some(window) = &previous_state.last_focused_window {
+        focus_window(window);
+        emulate_paste();
     }
 }
 
@@ -323,6 +335,7 @@ pub fn run() {
 
                 if *focused {
                     previous_state.is_showing = true;
+                    // emit focus dom event here
                     return;
                 }
 
@@ -337,10 +350,6 @@ pub fn run() {
                     main_window.hide().unwrap();
                     sub_window.hide().unwrap();
                     previous_state.is_showing = false;
-                    if let Some(window) = &previous_state.last_focused_window {
-                        focus_window(window);
-                        emulate_paste();
-                    }
                 }
             }
         })
@@ -350,8 +359,9 @@ pub fn run() {
             get_previous_content,
             get_cursor_position,
             open_submenu,
-            close_submenu,
+            focus_webview_window,
             close_all,
+            close_and_paste,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
